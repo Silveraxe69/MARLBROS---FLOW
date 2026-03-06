@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Smart Bus Passenger",
+    "slug": "smart-bus-passenger",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#6200EE"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.smartbus.passenger"
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.smartbus.passenger"
+    },
+    "extra": {
+      "apiUrl": "http://192.168.156.122:5000/api",
+      "socketUrl": "http://192.168.156.122:5000",
+      "mapboxToken": "YOUR_MAPBOX_TOKEN_HERE"
+    }
+  }
+}
