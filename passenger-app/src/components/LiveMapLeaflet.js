@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, Card, Chip } from 'react-native-paper';
-import { colors } from '../utils/theme';
 
-const LiveMapLeaflet = ({ buses = [], stops = [], height = 400 }) => {
+const LiveMapLeaflet = ({ buses = [], stops = [], routes = [], height = 400 }) => {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const polylinesRef = useRef([]);
   const [mapReady, setMapReady] = useState(false);
 
   // Initialize map
@@ -78,6 +77,8 @@ const LiveMapLeaflet = ({ buses = [], stops = [], height = 400 }) => {
     // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
+    polylinesRef.current.forEach(polyline => polyline.remove());
+    polylinesRef.current = [];
 
     // Bus colors based on service type
     const busColors = {
@@ -168,8 +169,112 @@ const LiveMapLeaflet = ({ buses = [], stops = [], height = 400 }) => {
       markersRef.current.push(marker);
     });
 
-    // Fit bounds if we have buses
-    if (buses.length > 0) {
+    // Add route markers from routes.csv
+    const toNumber = (value) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const routeBounds = [];
+
+    routes.forEach((route, index) => {
+      const startLat = toNumber(route.start_latitude);
+      const startLon = toNumber(route.start_longitude);
+      const endLat = toNumber(route.end_latitude);
+      const endLon = toNumber(route.end_longitude);
+
+      if (startLat === null || startLon === null || endLat === null || endLon === null) {
+        return;
+      }
+
+      const color = '#1976D2';
+
+      const startIcon = L.divIcon({
+        html: `
+          <div style="
+            background-color: #4CAF50;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+          ">
+            🚌
+          </div>
+        `,
+        className: `route-start-marker-${index}`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+
+      const endIcon = L.divIcon({
+        html: `
+          <div style="
+            background-color: #2196F3;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+          ">
+            🚌
+          </div>
+        `,
+        className: `route-end-marker-${index}`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+
+      const startMarker = L.marker([startLat, startLon], { icon: startIcon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="min-width: 160px;">
+            <strong>${route.route_id}</strong><br/>
+            Start: ${route.start_stop}
+          </div>
+        `);
+
+      const endMarker = L.marker([endLat, endLon], { icon: endIcon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="min-width: 160px;">
+            <strong>${route.route_id}</strong><br/>
+            Destination: ${route.end_stop}
+          </div>
+        `);
+
+      const polyline = L.polyline(
+        [
+          [startLat, startLon],
+          [endLat, endLon],
+        ],
+        {
+          color,
+          weight: 4,
+          opacity: 0.7,
+          dashArray: '8,6',
+        }
+      ).addTo(map);
+
+      markersRef.current.push(startMarker, endMarker);
+      polylinesRef.current.push(polyline);
+      routeBounds.push([startLat, startLon], [endLat, endLon]);
+    });
+
+    // Prioritize selected route bounds when available.
+    if (routeBounds.length > 0) {
+      map.fitBounds(routeBounds, { padding: [50, 50], maxZoom: 12 });
+    } else if (buses.length > 0) {
       const bounds = buses
         .filter(b => b.latitude && b.longitude)
         .map(b => [b.latitude, b.longitude]);
@@ -178,7 +283,7 @@ const LiveMapLeaflet = ({ buses = [], stops = [], height = 400 }) => {
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
       }
     }
-  }, [buses, stops, mapReady]);
+  }, [buses, stops, routes, mapReady]);
 
   return (
     <View style={[styles.container, { height }]}>

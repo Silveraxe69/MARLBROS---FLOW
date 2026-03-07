@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Button, Text, Card, IconButton, Chip } from 'react-native-paper';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Animated, Easing } from 'react-native';
+import { Button, Text, Card } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../utils/theme';
 import { loadMultipleCSV } from '../utils/csvParser';
+import PassengerNavbar from '../components/PassengerNavbar';
 
 const HomeScreen = ({ navigation }) => {
   const { user, preferWomenBuses } = useAuth();
@@ -16,11 +17,34 @@ const HomeScreen = ({ navigation }) => {
   const [busStopSequenceData, setBusStopSequenceData] = useState([]);
   const [busesData, setBusesData] = useState([]);
   const [liveBusLocations, setLiveBusLocations] = useState([]);
+  const aiPulseValue = useRef(new Animated.Value(0)).current;
 
   // Load data from public folder on component mount
   useEffect(() => {
     loadAllData();
   }, []);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(aiPulseValue, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(aiPulseValue, {
+          toValue: 0,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    loop.start();
+    return () => loop.stop();
+  }, [aiPulseValue]);
 
   const loadAllData = useCallback(async () => {
     try {
@@ -55,20 +79,34 @@ const HomeScreen = ({ navigation }) => {
   const findConnectingRoutes = useCallback((fromStopId, toStopId) => {
     const results = [];
 
+    const normalizeId = (value) => String(value || '').trim();
+    const fromId = normalizeId(fromStopId);
+    const toId = normalizeId(toStopId);
+
+    const getStopOrder = (sequence) => {
+      const raw = sequence?.stop_order ?? sequence?.stop_sequence ?? '0';
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     // Get all unique route IDs
-    const allRouteIds = [...new Set(busStopSequenceData.map(seq => seq.route_id))];
+    const allRouteIds = [...new Set(busStopSequenceData.map(seq => normalizeId(seq.route_id)).filter(Boolean))];
 
     allRouteIds.forEach(routeId => {
       const routeStops = busStopSequenceData
-        .filter(seq => seq.route_id === routeId)
-        .sort((a, b) => a.stop_order - b.stop_order);
+        .filter(seq => normalizeId(seq.route_id) === routeId)
+        .sort((a, b) => getStopOrder(a) - getStopOrder(b));
 
-      const fromIndex = routeStops.findIndex(s => s.stop_id === fromStopId);
-      const toIndex = routeStops.findIndex(s => s.stop_id === toStopId);
+      const fromIndex = routeStops.findIndex(s => normalizeId(s.stop_id) === fromId);
+      const toIndex = routeStops.findIndex(s => normalizeId(s.stop_id) === toId);
 
       if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
-        const route = routesData.find(r => r.route_id === routeId);
-        const busesOnRoute = busesData.filter(b => b.route_id === routeId && b.status === 'Running');
+        const route = routesData.find(r => normalizeId(r.route_id) === routeId);
+        const busesOnRoute = busesData.filter((b) => {
+          if (normalizeId(b.route_id) !== routeId) return false;
+          const status = String(b.status || '').toLowerCase();
+          return status !== 'stopped';
+        });
 
         // Sort buses - women buses first if preference is enabled
         let sortedBuses = busesOnRoute;
@@ -80,6 +118,7 @@ const HomeScreen = ({ navigation }) => {
         }
 
         results.push({
+          routeId,
           route,
           buses: sortedBuses,
           stopCount: toIndex - fromIndex + 1,
@@ -104,28 +143,50 @@ const HomeScreen = ({ navigation }) => {
     // Find routes that connect these stops
     const foundRoutes = findConnectingRoutes(fromStop.stop_id, toStop.stop_id);
     setRoutes(foundRoutes);
-  }, [fromStop, toStop, findConnectingRoutes]);
+
+    if (foundRoutes.length === 0) {
+      alert('No buses found for the selected start and destination points');
+      return;
+    }
+
+    const routeIds = [...new Set(foundRoutes.map(r => r.routeId).filter(Boolean))];
+    const busIdsFromRoutes = foundRoutes
+      .flatMap(r => r.buses || [])
+      .map(bus => bus.bus_id)
+      .filter(Boolean);
+
+    const busIdsFromLiveLocation = liveBusLocations
+      .filter((bus) => routeIds.includes(bus.route_id))
+      .map((bus) => bus.bus_id)
+      .filter(Boolean);
+
+    const busIds = [...new Set([...busIdsFromRoutes, ...busIdsFromLiveLocation])];
+
+    navigation.navigate('LiveMap', {
+      filterRouteIds: routeIds,
+      filterBusIds: busIds,
+      fromStopId: fromStop.stop_id,
+      toStopId: toStop.stop_id,
+      fromStopName: fromStop.stop_name,
+      toStopName: toStop.stop_name,
+    });
+  }, [fromStop, toStop, findConnectingRoutes, liveBusLocations, navigation]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.headerText}>
-            <Text variant="headlineMedium" style={styles.greeting}>
-              Hello, {user?.name || 'Passenger'}! 👋
-            </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Where would you like to go today?
-            </Text>
-          </View>
-          <IconButton
-            icon="account-circle"
-            iconColor="white"
-            size={32}
-            onPress={() => navigation.navigate('Settings')}
-            style={styles.accountButton}
-          />
-        </View>
+      <PassengerNavbar
+        navigation={navigation}
+        rightIcon="account-circle"
+        onRightPress={() => navigation.navigate('Settings')}
+      />
+
+      <View style={styles.welcomeStrip}>
+        <Text variant="titleMedium" style={styles.greeting}>
+          Hello, {user?.name || 'Passenger'}
+        </Text>
+        <Text variant="bodySmall" style={styles.subtitle}>
+          Where would you like to go today?
+        </Text>
       </View>
 
       <ScrollView 
@@ -237,39 +298,54 @@ const HomeScreen = ({ navigation }) => {
           </Card>
         )}
 
-        {/* Live Map Button Card - Moved to Bottom */}
-        <Card style={styles.liveMapCard}>
+        <Card style={styles.aiRouteCard}>
           <Card.Content>
-            <View style={styles.liveMapHeader}>
-              <View style={styles.liveMapTitleContainer}>
-                <Text variant="titleLarge" style={styles.liveMapTitle}>
-                  🗺️ Live Bus Tracking
+            <View style={styles.aiRouteHeader}>
+              <View style={styles.aiRouteTitleContainer}>
+                <Text variant="titleLarge" style={styles.aiRouteTitle}>
+                  AI Route Assistant
                 </Text>
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveIndicator} />
-                  <Text variant="bodySmall" style={styles.liveText}>LIVE</Text>
+                <View style={styles.aiBadge}>
+                  <Animated.View
+                    style={[
+                      styles.aiPulseDot,
+                      {
+                        transform: [
+                          {
+                            scale: aiPulseValue.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [1, 1.15],
+                            }),
+                          },
+                        ],
+                        opacity: aiPulseValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 0.75],
+                        }),
+                      },
+                    ]}
+                  />
+                  <Text variant="bodySmall" style={styles.aiBadgeText}>SMART</Text>
                 </View>
               </View>
-              <Chip icon="bus" style={styles.busCountChip}>
-                {liveBusLocations.length} buses
-              </Chip>
             </View>
-            
-            <Text variant="bodyMedium" style={styles.mapDescription}>
-              Track all buses in real-time on an interactive map
+
+            <Text variant="bodyMedium" style={styles.aiDescription}>
+              Get fastest route suggestions using stop network and simulated traffic.
             </Text>
-            
+
             <Button
               mode="contained"
-              icon="map"
-              style={styles.openMapButton}
-              contentStyle={styles.openMapButtonContent}
-              onPress={() => navigation.navigate('LiveMap')}
+              icon="creation"
+              style={styles.openAiButton}
+              contentStyle={styles.openAiButtonContent}
+              onPress={() => navigation.navigate('RouteRecommendation')}
             >
-              Open Live Map
+              Open AI Route
             </Button>
           </Card.Content>
         </Card>
+
       </ScrollView>
     </View>
   );
@@ -281,29 +357,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    backgroundColor: colors.primary,
-    paddingTop: 40,
     flexShrink: 0,
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  headerText: {
-    flex: 1,
-  },
-  accountButton: {
-    margin: 0,
+  welcomeStrip: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 2,
   },
   greeting: {
-    color: 'white',
+    color: colors.textPrimary,
     fontWeight: 'bold',
   },
   subtitle: {
-    color: 'white',
-    opacity: 0.9,
+    color: colors.textSecondary,
     marginTop: 4,
   },
   searchCard: {
@@ -384,63 +450,61 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  liveMapCard: {
-    margin: 16,
+  resultsContainer: {
+    marginTop: 0,
+  },
+  aiRouteCard: {
+    marginHorizontal: 16,
     marginTop: 8,
-    marginBottom: 16,
-    elevation: 6,
-    backgroundColor: '#fff',
+    marginBottom: 8,
+    elevation: 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.chipBlue,
   },
-  liveMapHeader: {
+  aiRouteHeader: {
+    marginBottom: 10,
+  },
+  aiRouteTitleContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
   },
-  liveMapTitleContainer: {
+  aiRouteTitle: {
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  aiBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.chipBlue,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
     gap: 8,
   },
-  liveMapTitle: {
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  liveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ff4444',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  aiPulseDot: {
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    gap: 4,
+    backgroundColor: colors.primary,
   },
-  liveIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#fff',
-  },
-  liveText: {
-    color: '#fff',
+  aiBadgeText: {
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 10,
   },
-  busCountChip: {
-    backgroundColor: colors.chipBlue,
-  },
-  mapDescription: {
+  aiDescription: {
     color: colors.textSecondary,
     marginBottom: 16,
   },
-  openMapButton: {
-    marginTop: 8,
-  },
-  openMapButtonContent: {
-    paddingVertical: 8,
-  },
-  resultsContainer: {
+  openAiButton: {
     marginTop: 0,
+  },
+  openAiButtonContent: {
+    paddingVertical: 8,
   },
 });
 

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Appbar, List, Switch, Button, Divider, Text, Card } from 'react-native-paper';
+import { List, Switch, Button, Divider, Text, Card } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../utils/theme';
+import PassengerNavbar from '../components/PassengerNavbar';
 
 const SettingsScreen = ({ navigation }) => {
   const { user, preferWomenBuses, toggleWomenBusPreference, logout } = useAuth();
@@ -14,11 +15,12 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header style={styles.header}>
-        <Appbar.BackAction onPress={() => navigation.navigate('Home')} />
-        <Appbar.Content title="Settings" />
-        <Appbar.Action icon="home" onPress={() => navigation.navigate('Home')} />
-      </Appbar.Header>
+      <PassengerNavbar
+        navigation={navigation}
+        showBack
+        onBackPress={() => navigation.navigate('Home')}
+        subtitle="FLOW - Passenger Settings"
+      />
 
       <ScrollView
         style={styles.content}

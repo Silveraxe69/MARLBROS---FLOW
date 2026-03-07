@@ -1,6 +1,6 @@
-route_id,start_stop,end_stop,distance_km
-R101,Gandhipuram,Pollachi,42
-R102,Chennai Central,Tambaram,28
-R103,Madurai,Dindigul,62
-R104,Salem,Erode,65
-R105,Tiruchirappalli,Thanjavur,55
+route_id,start_stop,end_stop,distance_km,start_latitude,start_longitude,end_latitude,end_longitude
+R101,Gandhipuram,Pollachi,42,11.0168,76.9558,10.6585,77.0087
+R102,Chennai Central,Tambaram,28,13.0827,80.2707,12.9249,80.1000
+R103,Madurai,Dindigul,62,9.9252,78.1198,10.3673,77.9803
+R104,Salem,Erode,65,11.6643,78.1460,11.3410,77.7172
+R105,Tiruchirappalli,Thanjavur,55,10.7905,78.7047,10.7867,79.1378

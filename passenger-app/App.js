@@ -15,6 +15,7 @@ import LiveMapScreen from './src/screens/LiveMapScreen';
 import BusStopScreen from './src/screens/BusStopScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import StopSelectionScreen from './src/screens/StopSelectionScreen';
+import RouteRecommendationScreen from './src/screens/RouteRecommendationScreen';
 
 const Stack = createStackNavigator();
 
@@ -66,6 +67,7 @@ function AppNavigator() {
             <Stack.Screen name="BusStop" component={BusStopScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="StopSelection" component={StopSelectionScreen} />
+            <Stack.Screen name="RouteRecommendation" component={RouteRecommendationScreen} />
           </>
         )}
       </Stack.Navigator>

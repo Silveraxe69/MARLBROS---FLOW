@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Appbar, Searchbar, List, Divider } from 'react-native-paper';
+import { Searchbar, List, Divider } from 'react-native-paper';
 import { colors } from '../utils/theme';
 import { loadCSV } from '../utils/csvParser';
+import PassengerNavbar from '../components/PassengerNavbar';
 
 const StopSelectionScreen = ({ route, navigation }) => {
   const { onSelect, title = 'Select Stop' } = route.params || {};
@@ -61,10 +62,12 @@ const StopSelectionScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={title} />
-      </Appbar.Header>
+      <PassengerNavbar
+        navigation={navigation}
+        showBack
+        onBackPress={() => navigation.goBack()}
+        subtitle={`FLOW - ${title}`}
+      />
 
       <Searchbar
         placeholder="Search stops..."

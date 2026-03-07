@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
-import { Appbar, Text, ActivityIndicator, Button } from 'react-native-paper';
+import { Text, ActivityIndicator, Button } from 'react-native-paper';
 import BusCard from '../components/BusCard';
 import { getNextBusesAtStop } from '../utils/etaCalculator';
 import { colors } from '../utils/theme';
 import { loadMultipleCSV } from '../utils/csvParser';
+import PassengerNavbar from '../components/PassengerNavbar';
 
 const BusStopScreen = ({ route, navigation }) => {
   const { stopId } = route.params || {};
@@ -72,11 +73,12 @@ const BusStopScreen = ({ route, navigation }) => {
   if (!stop) {
     return (
       <View style={styles.container}>
-        <Appbar.Header style={styles.appbarHeader}>
-          <Appbar.BackAction onPress={() => navigation.navigate('Home')} />
-          <Appbar.Content title="Bus Stop" />
-          <Appbar.Action icon="home" onPress={() => navigation.navigate('Home')} />
-        </Appbar.Header>
+        <PassengerNavbar
+          navigation={navigation}
+          showBack
+          onBackPress={() => navigation.navigate('Home')}
+          subtitle="FLOW - Bus Stop Details"
+        />
         <View style={styles.center}>
           <Text>Stop not found</Text>
         </View>
@@ -86,11 +88,12 @@ const BusStopScreen = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header style={styles.appbarHeader}>
-        <Appbar.BackAction onPress={() => navigation.navigate('Home')} />
-        <Appbar.Content title={stop.stop_name} subtitle={stop.city} />
-        <Appbar.Action icon="home" onPress={() => navigation.navigate('Home')} />
-      </Appbar.Header>
+      <PassengerNavbar
+        navigation={navigation}
+        showBack
+        onBackPress={() => navigation.navigate('Home')}
+        subtitle={`FLOW - ${stop.stop_name}`}
+      />
 
       {loading ? (
         <View style={styles.center}>
