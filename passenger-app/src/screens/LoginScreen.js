@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { TextInput, Button, Text, Surface } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../utils/theme';
@@ -45,8 +45,13 @@ const LoginScreen = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Surface style={styles.surface}>
           <View style={styles.header}>
+            <Image 
+              source={require('../../public/images/tnstc-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text variant="displaySmall" style={styles.title}>
-              🚌 FLOW Passenger Portal
+              FLOW Passenger Portal
             </Text>
             <Text variant="titleMedium" style={styles.subtitle}>
               Tamil Nadu State Transport Corporation Ltd.
@@ -146,6 +151,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
   },
   title: {
     fontWeight: 'bold',
